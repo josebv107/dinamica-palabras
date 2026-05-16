@@ -6,16 +6,22 @@
     <title>Dinámica de Palabras</title>
     <style>
         :root {
-            --bg-color: #121212;
-            --text-color: #ffffff;
-            --primary: #4CAF50;
-            --secondary: #2196F3;
-            --danger: #f44336;
+            /* Paleta de colores azules elegantes */
+            --bg-gradient: linear-gradient(135deg, #0A192F 0%, #112240 100%);
+            --text-main: #F8FAFC;
+            --timer-color: #38BDF8; /* Azul claro brillante */
+            --btn-primary: #2563EB;
+            --btn-hover: #1D4ED8;
+            --btn-pause: #F59E0B; /* Naranja para contrastar */
+            --btn-resume: #10B981; /* Verde para reanudar */
+            --btn-danger: #EF4444;
+            --card-bg: #1E293B;
         }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            background: var(--bg-gradient);
+            color: var(--text-main);
             text-align: center;
             margin: 0;
             padding: 20px;
@@ -23,100 +29,132 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 90vh;
+            min-height: 95vh;
+            box-sizing: border-box;
         }
+        
         .hidden { display: none !important; }
         
         /* Pantalla de Configuración */
         #setup-screen {
             width: 100%;
-            max-width: 600px;
-            background: #1e1e1e;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-width: 650px;
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
         }
+        
+        h2 { 
+            color: var(--timer-color); 
+            margin-top: 0; 
+            font-size: 2em;
+        }
+        
         textarea {
-            width: 90%;
-            height: 150px;
-            font-size: 1.1em;
+            width: 100%;
+            box-sizing: border-box;
+            height: 180px;
+            font-size: 1.2em;
             padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            border: 1px solid #444;
-            background: #2d2d2d;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            border: 2px solid #334155;
+            background: #0F172A;
             color: white;
             resize: vertical;
+            line-height: 1.5;
+        }
+        textarea:focus { 
+            outline: none; 
+            border-color: var(--timer-color); 
         }
         
         /* Pantalla de Juego */
-        #game-screen { width: 100%; max-width: 900px; }
-        .timer {
-            font-size: 5em;
-            font-weight: bold;
-            color: #ffeb3b;
-            margin-bottom: 20px;
-            font-variant-numeric: tabular-nums;
+        #game-screen { 
+            width: 100%; 
+            max-width: 1200px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
+        
+        .timer {
+            font-size: 8em;
+            font-weight: 800;
+            color: var(--timer-color);
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 25px rgba(56, 189, 248, 0.4);
+            margin-bottom: 10px;
+            line-height: 1;
+        }
+        
         .word-display {
-            font-size: 4em;
-            letter-spacing: 12px;
-            margin: 40px 0;
-            font-family: monospace;
+            font-size: 5.5em;
+            letter-spacing: 12px; /* Espacio para que se noten las líneas separadas */
+            margin: 60px 0;
+            font-family: 'Courier New', Courier, monospace; /* Fuente monoespaciada para alinear bien */
             word-wrap: break-word;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
         
         /* Botones */
         .controls {
             display: flex;
             justify-content: center;
-            gap: 15px;
+            gap: 25px;
             flex-wrap: wrap;
-            margin-top: 30px;
-        }
-        button {
-            font-size: 1.2em;
-            padding: 12px 24px;
-            cursor: pointer;
-            border-radius: 8px;
-            border: none;
-            font-weight: bold;
-            transition: opacity 0.2s;
-            color: white;
-        }
-        button:hover { opacity: 0.8; }
-        .btn-start { background-color: var(--primary); width: 100%; }
-        .btn-next { background-color: var(--secondary); }
-        .btn-reset { background-color: var(--danger); }
-        
-        .instructions {
-            font-size: 0.9em;
-            color: #aaa;
             margin-top: 20px;
         }
+        
+        button {
+            font-size: 1.3em;
+            padding: 16px 32px;
+            cursor: pointer;
+            border-radius: 12px;
+            border: none;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        
+        button:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4); 
+        }
+        
+        button:active { 
+            transform: translateY(1px); 
+        }
+        
+        .btn-start { background-color: var(--btn-primary); width: 100%; font-size: 1.5em; }
+        .btn-next { background-color: var(--btn-primary); }
+        .btn-pause { background-color: var(--btn-pause); }
+        .btn-pause.paused { background-color: var(--btn-resume); }
+        .btn-reset { background-color: var(--btn-danger); }
+        
     </style>
 </head>
 <body>
 
-    <!-- PANTALLA DE CONFIGURACIÓN -->
     <div id="setup-screen">
-        <h2>Configuración de la Dinámica</h2>
-        <p>Ingresa las palabras o frases (una por línea):</p>
+        <h2>Configuración de Dinámica</h2>
+        <p style="font-size: 1.1em; color: #cbd5e1;">Ingresa las palabras o frases (una por línea):</p>
         <textarea id="word-list" placeholder="Hola como estas&#10;Ingenieria de sistemas&#10;Bases de datos"></textarea>
-        <button class="btn-start" onclick="startGame()">Empezar Dinámica</button>
+        <button class="btn-start" onclick="startGame()">Empezar Proyección ▶️</button>
     </div>
 
-    <!-- PANTALLA DE JUEGO -->
     <div id="game-screen" class="hidden">
         <div class="timer" id="timer">05:00</div>
+        
         <div class="word-display" id="word-display"></div>
         
         <div class="controls">
-            <button class="btn-next" onclick="nextWord()">Siguiente Palabra ⏭️</button>
-            <button class="btn-reset" onclick="resetGame()">Volver al Inicio ⏹️</button>
-        </div>
-        <div class="instructions">
-            La persona con la aplicación abierta solo debe <b>presionar letras en su teclado</b> para irlas revelando una por una en el orden en que aparecen.
+            <button class="btn-pause" id="btn-pause" onclick="togglePause()">Pausar ⏸️</button>
+            <button class="btn-next" onclick="nextWord()">Siguiente ⏭️</button>
+            <button class="btn-reset" onclick="resetGame()">Finalizar ⏹️</button>
         </div>
     </div>
 
@@ -127,6 +165,7 @@
         let currentMasked = [];
         let timerInterval;
         let timeLeft = 300; // 5 minutos en segundos
+        let isPaused = false;
 
         // Función para normalizar texto (ignorar tildes)
         function removeAccents(str) {
@@ -150,21 +189,35 @@
 
         function loadWord() {
             if(currentWordIndex >= words.length) {
-                alert("¡Dinámica terminada! No hay más palabras.");
+                alert("¡Dinámica terminada! No hay más palabras en la lista.");
                 resetGame();
                 return;
             }
             
-            // Ignoramos tildes para la lógica de comparación interna
             currentOriginal = removeAccents(words[currentWordIndex]).toUpperCase();
             currentMasked = [];
+            let chars = currentOriginal.split('');
+            let isFirstLetter = true;
             
-            // Creamos la máscara (letras se vuelven '-', los espacios se mantienen)
-            for(let char of currentOriginal) {
-                if(/[A-Z0-9]/.test(char)) {
-                    currentMasked.push('-');
+            // LÓGICA DE AYUDAS AUTOMÁTICAS
+            for (let i = 0; i < chars.length; i++) {
+                if (/[A-Z0-9]/.test(chars[i])) {
+                    // Siempre revela la primera letra de CADA palabra
+                    if (isFirstLetter) {
+                        currentMasked.push(chars[i]); 
+                        isFirstLetter = false;
+                    } else {
+                        // Para el resto de las letras, hay un 25% de probabilidad de que se revelen como ayuda extra
+                        if (Math.random() < 0.25) {
+                            currentMasked.push(chars[i]);
+                        } else {
+                            currentMasked.push('_'); // Usamos guion bajo porque se ve mejor en pantalla grande
+                        }
+                    }
                 } else {
-                    currentMasked.push(char); // Mantiene espacios y signos de puntuación
+                    // Si es un espacio o signo de puntuación, lo mostramos y preparamos para la siguiente palabra
+                    currentMasked.push(chars[i]);
+                    if (chars[i] === ' ') isFirstLetter = true; 
                 }
             }
             
@@ -176,18 +229,39 @@
             document.getElementById('word-display').innerText = currentMasked.join('');
         }
 
+        function togglePause() {
+            isPaused = !isPaused;
+            const btn = document.getElementById('btn-pause');
+            if (isPaused) {
+                btn.innerHTML = 'Reanudar ▶️';
+                btn.classList.add('paused');
+            } else {
+                btn.innerHTML = 'Pausar ⏸️';
+                btn.classList.remove('paused');
+            }
+        }
+
         function startTimer() {
             clearInterval(timerInterval);
-            timeLeft = 300; // Reinicia a 5:00 exactos
+            timeLeft = 300; // Reinicia a 5:00
+            isPaused = false;
+            
+            // Reiniciar aspecto del botón de pausa
+            const btnPause = document.getElementById('btn-pause');
+            btnPause.innerHTML = 'Pausar ⏸️';
+            btnPause.classList.remove('paused');
+            
             updateTimerDisplay();
             
             timerInterval = setInterval(() => {
-                timeLeft--;
-                if(timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    timeLeft = 0;
+                if(!isPaused) {
+                    timeLeft--;
+                    if(timeLeft <= 0) {
+                        timeLeft = 0;
+                        isPaused = true; // Se pausa automáticamente al llegar a 0
+                    }
+                    updateTimerDisplay();
                 }
-                updateTimerDisplay();
             }, 1000);
         }
 
@@ -210,20 +284,18 @@
 
         // Evento que escucha el teclado para autocompletar
         window.addEventListener('keydown', (e) => {
-            // Si no estamos en la pantalla de juego o se presionan teclas de control, ignorar
             if(document.getElementById('game-screen').classList.contains('hidden')) return;
             if(e.ctrlKey || e.altKey || e.metaKey) return;
 
             let key = removeAccents(e.key).toUpperCase();
             
-            // Si es una sola letra o número
             if(/^[A-Z0-9]$/.test(key)) {
-                // Busca la PRIMERA coincidencia de esa letra que aún esté oculta ('-')
+                // Busca la PRIMERA coincidencia de esa letra que aún sea un guion bajo '_'
                 for(let i = 0; i < currentOriginal.length; i++) {
-                    if(currentOriginal[i] === key && currentMasked[i] === '-') {
+                    if(currentOriginal[i] === key && currentMasked[i] === '_') {
                         currentMasked[i] = key;
                         updateDisplay();
-                        break; // El 'break' asegura que solo se reemplace la primera que encuentre
+                        break; 
                     }
                 }
             }
