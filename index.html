@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dinámica de Palabras</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --text-color: #ffffff;
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --danger: #f44336;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 90vh;
+        }
+        .hidden { display: none !important; }
+        
+        /* Pantalla de Configuración */
+        #setup-screen {
+            width: 100%;
+            max-width: 600px;
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        textarea {
+            width: 90%;
+            height: 150px;
+            font-size: 1.1em;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #2d2d2d;
+            color: white;
+            resize: vertical;
+        }
+        
+        /* Pantalla de Juego */
+        #game-screen { width: 100%; max-width: 900px; }
+        .timer {
+            font-size: 5em;
+            font-weight: bold;
+            color: #ffeb3b;
+            margin-bottom: 20px;
+            font-variant-numeric: tabular-nums;
+        }
+        .word-display {
+            font-size: 4em;
+            letter-spacing: 12px;
+            margin: 40px 0;
+            font-family: monospace;
+            word-wrap: break-word;
+        }
+        
+        /* Botones */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+        button {
+            font-size: 1.2em;
+            padding: 12px 24px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            transition: opacity 0.2s;
+            color: white;
+        }
+        button:hover { opacity: 0.8; }
+        .btn-start { background-color: var(--primary); width: 100%; }
+        .btn-next { background-color: var(--secondary); }
+        .btn-reset { background-color: var(--danger); }
+        
+        .instructions {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA DE CONFIGURACIÓN -->
+    <div id="setup-screen">
+        <h2>Configuración de la Dinámica</h2>
+        <p>Ingresa las palabras o frases (una por línea):</p>
+        <textarea id="word-list" placeholder="Hola como estas&#10;Ingenieria de sistemas&#10;Bases de datos"></textarea>
+        <button class="btn-start" onclick="startGame()">Empezar Dinámica</button>
+    </div>
+
+    <!-- PANTALLA DE JUEGO -->
+    <div id="game-screen" class="hidden">
+        <div class="timer" id="timer">05:00</div>
+        <div class="word-display" id="word-display"></div>
+        
+        <div class="controls">
+            <button class="btn-next" onclick="nextWord()">Siguiente Palabra ⏭️</button>
+            <button class="btn-reset" onclick="resetGame()">Volver al Inicio ⏹️</button>
+        </div>
+        <div class="instructions">
+            La persona con la aplicación abierta solo debe <b>presionar letras en su teclado</b> para irlas revelando una por una en el orden en que aparecen.
+        </div>
+    </div>
+
+    <script>
+        let words = [];
+        let currentWordIndex = 0;
+        let currentOriginal = "";
+        let currentMasked = [];
+        let timerInterval;
+        let timeLeft = 300; // 5 minutos en segundos
+
+        // Función para normalizar texto (ignorar tildes)
+        function removeAccents(str) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function startGame() {
+            const text = document.getElementById('word-list').value;
+            words = text.split('\n').filter(w => w.trim() !== '');
+            
+            if(words.length === 0) {
+                alert("Por favor, ingresa al menos una palabra para jugar.");
+                return;
+            }
+            
+            currentWordIndex = 0;
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            loadWord();
+        }
+
+        function loadWord() {
+            if(currentWordIndex >= words.length) {
+                alert("¡Dinámica terminada! No hay más palabras.");
+                resetGame();
+                return;
+            }
+            
+            // Ignoramos tildes para la lógica de comparación interna
+            currentOriginal = removeAccents(words[currentWordIndex]).toUpperCase();
+            currentMasked = [];
+            
+            // Creamos la máscara (letras se vuelven '-', los espacios se mantienen)
+            for(let char of currentOriginal) {
+                if(/[A-Z0-9]/.test(char)) {
+                    currentMasked.push('-');
+                } else {
+                    currentMasked.push(char); // Mantiene espacios y signos de puntuación
+                }
+            }
+            
+            updateDisplay();
+            startTimer();
+        }
+
+        function updateDisplay() {
+            document.getElementById('word-display').innerText = currentMasked.join('');
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 300; // Reinicia a 5:00 exactos
+            updateTimerDisplay();
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                if(timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timeLeft = 0;
+                }
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            let m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            let s = (timeLeft % 60).toString().padStart(2, '0');
+            document.getElementById('timer').innerText = `${m}:${s}`;
+        }
+
+        function nextWord() {
+            currentWordIndex++;
+            loadWord();
+        }
+
+        function resetGame() {
+            clearInterval(timerInterval);
+            document.getElementById('setup-screen').classList.remove('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+        }
+
+        // Evento que escucha el teclado para autocompletar
+        window.addEventListener('keydown', (e) => {
+            // Si no estamos en la pantalla de juego o se presionan teclas de control, ignorar
+            if(document.getElementById('game-screen').classList.contains('hidden')) return;
+            if(e.ctrlKey || e.altKey || e.metaKey) return;
+
+            let key = removeAccents(e.key).toUpperCase();
+            
+            // Si es una sola letra o número
+            if(/^[A-Z0-9]$/.test(key)) {
+                // Busca la PRIMERA coincidencia de esa letra que aún esté oculta ('-')
+                for(let i = 0; i < currentOriginal.length; i++) {
+                    if(currentOriginal[i] === key && currentMasked[i] === '-') {
+                        currentMasked[i] = key;
+                        updateDisplay();
+                        break; // El 'break' asegura que solo se reemplace la primera que encuentre
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
