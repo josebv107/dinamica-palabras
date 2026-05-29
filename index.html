@@ -74,9 +74,24 @@ body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-heigh
 .ctrl-btn.warn-btn:hover{background:rgba(245,158,11,.1)}
 .ctrl-btn.danger-btn{border-color:rgba(255,74,74,.4);color:var(--danger)}
 .ctrl-btn.danger-btn:hover{background:rgba(255,74,74,.1)}
+
+/* Pause overlay */
 .pause-overlay{position:fixed;inset:0;background:rgba(6,9,15,.85);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .3s}
 .pause-overlay.visible{opacity:1;pointer-events:all}
 .pause-card{text-align:center;color:var(--text-muted);font-size:1.3em;letter-spacing:3px;text-transform:uppercase;font-family:var(--word-font)}
+
+/* ✅ WIN MODAL */
+.win-overlay{position:fixed;inset:0;background:rgba(6,9,15,.92);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .35s}
+.win-overlay.visible{opacity:1;pointer-events:all}
+.win-card{background:var(--surface);border:1px solid var(--green);border-radius:20px;padding:44px 52px;text-align:center;max-width:460px;width:90%;box-shadow:0 0 60px rgba(34,197,94,.18);transform:scale(.92);transition:transform .35s}
+.win-overlay.visible .win-card{transform:scale(1)}
+.win-emoji{font-size:3.5em;margin-bottom:12px;display:block}
+.win-title{font-family:var(--word-font);font-size:1.8em;font-weight:700;color:var(--green);margin-bottom:8px;letter-spacing:2px}
+.win-sub{color:var(--text-muted);font-size:.95em;margin-bottom:32px;line-height:1.5}
+.win-word{font-family:var(--word-font);color:var(--text);font-size:1.1em;letter-spacing:4px;margin-bottom:28px;padding:14px 20px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)}
+.win-btn{background:var(--green);border:none;color:#06090F;font-family:var(--ui-font);font-size:1.1em;font-weight:700;padding:14px 36px;border-radius:12px;cursor:pointer;width:100%;transition:all .2s;letter-spacing:.5px}
+.win-btn:hover{background:#4ADA7E;box-shadow:0 4px 20px rgba(34,197,94,.35);transform:translateY(-1px)}
+
 .complexity-badge{font-size:.72em;text-transform:uppercase;letter-spacing:2px;padding:4px 10px;border-radius:6px;margin-bottom:16px;font-weight:600}
 .complexity-badge.easy{background:rgba(29,158,255,.12);color:var(--accent)}
 .complexity-badge.medium{background:rgba(245,158,11,.12);color:var(--warn)}
@@ -113,7 +128,7 @@ body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-heigh
   <div class="panel">
     <div class="panel-title">Opciones</div>
     <div class="sound-row">
-      <span style="color:var(--text-muted);font-size:.95em">Sonido de temporizador (tick)</span>
+      <span style="color:var(--text-muted);font-size:.95em">Sonido de reloj (tick-tock continuo)</span>
       <label class="toggle-switch">
         <input type="checkbox" id="sound-toggle" checked>
         <span class="toggle-thumb"></span>
@@ -148,9 +163,21 @@ body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-heigh
   </div>
 </div>
 
+<!-- Pause overlay -->
 <div class="pause-overlay" id="pause-overlay">
   <div class="pause-card">⏸ Pausado<br>
     <span style="font-size:.55em;letter-spacing:1px;opacity:.5;margin-top:10px;display:block">Presiona Reanudar para continuar</span>
+  </div>
+</div>
+
+<!-- ✅ Win overlay -->
+<div class="win-overlay" id="win-overlay">
+  <div class="win-card">
+    <span class="win-emoji">🎉</span>
+    <div class="win-title">¡COMPLETADO!</div>
+    <div class="win-sub">¡Excelente! Descubriste la palabra correctamente.</div>
+    <div class="win-word" id="win-word-text"></div>
+    <button class="win-btn" id="win-next-btn" onclick="winNext()">Siguiente palabra ▶</button>
   </div>
 </div>
 
@@ -175,151 +202,200 @@ const COMPLEXITY_LABELS = {1:"Fácil", 2:"Medio", 3:"Difícil"};
 const COMPLEXITY_CLASSES= {1:"easy",  2:"medium", 3:"hard"};
 
 // =========================================================
-// AUDIO
-// La única regla: crear y resumir el AudioContext DENTRO
-// de un handler onclick (gesto directo). Luego beep() lo
-// llama con resume() async por si se suspende entre clicks.
+// AUDIO — tick-tock continuo con Web Audio API
 // =========================================================
 let _ac = null;
 let soundEnabled = true;
-let lastTickSecond = -1;
+let tickInterval = null;    // setInterval del reloj
+let tickPhase = 0;          // alterna 0=tick, 1=tock
 
 function createCtx() {
   if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
 }
 
-// Llamado siempre dentro de un onclick — desbloquea el contexto
 function unlockAudioSync() {
   createCtx();
-  // resume() es async pero llamarlo dentro del gesto lo desbloquea
   if (_ac.state !== 'running') _ac.resume();
 }
 
-// Toca un beep. Si el contexto está suspendido lo resume primero (async).
-function beep(freq, dur, vol) {
+// Genera un sonido mecánico de reloj
+// tick: tono más alto / tock: tono más bajo
+function clockClick(isTick) {
   if (!soundEnabled || !_ac) return;
   const play = () => {
     try {
-      const osc = _ac.createOscillator();
-      const g   = _ac.createGain();
-      osc.connect(g);
-      g.connect(_ac.destination);
-      osc.type = 'square';
-      osc.frequency.value = freq;
-      g.gain.setValueAtTime(vol, _ac.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + dur);
-      osc.start(_ac.currentTime);
-      osc.stop(_ac.currentTime + dur + 0.02);
+      const now = _ac.currentTime;
+      // Ruido filtrado para dar sensación mecánica
+      const bufSize = _ac.sampleRate * 0.04;
+      const buf = _ac.createBuffer(1, bufSize, _ac.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+
+      const source = _ac.createBufferSource();
+      source.buffer = buf;
+
+      // Filtro pasa-banda para el carácter del click
+      const filter = _ac.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = isTick ? 1400 : 900;
+      filter.Q.value = 3.5;
+
+      const gain = _ac.createGain();
+      gain.gain.setValueAtTime(0.55, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(_ac.destination);
+      source.start(now);
     } catch(e) {}
   };
-  if (_ac.state === 'running') {
-    play();
-  } else {
-    _ac.resume().then(play);
-  }
+  if (_ac.state === 'running') play();
+  else _ac.resume().then(play);
 }
 
-function playTick(urgent) {
-  beep(urgent ? 1050 : 720, 0.08, 0.4);
+function startClockTick() {
+  stopClockTick();
+  if (!soundEnabled) return;
+  tickPhase = 0;
+  // Toca de inmediato el primer tick
+  clockClick(true);
+  tickPhase = 1;
+  tickInterval = setInterval(() => {
+    if (isPaused) return;
+    clockClick(tickPhase === 0);
+    tickPhase = 1 - tickPhase;
+  }, 500); // cada medio segundo = tick + tock = 1 segundo completo
+}
+
+function stopClockTick() {
+  if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
 }
 
 function playTimeUp() {
+  stopClockTick();
   [659,587,523,392].forEach((f,i) => {
-    setTimeout(() => beep(f, 0.2, 0.45), i * 220);
+    setTimeout(() => {
+      if (!_ac) return;
+      const play = () => {
+        const osc = _ac.createOscillator();
+        const g = _ac.createGain();
+        osc.connect(g); g.connect(_ac.destination);
+        osc.type = 'square'; osc.frequency.value = f;
+        g.gain.setValueAtTime(0.45, _ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + 0.2);
+        osc.start(_ac.currentTime); osc.stop(_ac.currentTime + 0.25);
+      };
+      if (_ac.state==='running') play(); else _ac.resume().then(play);
+    }, i * 220);
   });
 }
 
-// Pitido de confirmación al iniciar (verifica que el audio funcione)
+function playWin() {
+  stopClockTick();
+  // Fanfarria ascendente
+  [523,659,784,1047].forEach((f,i) => {
+    setTimeout(() => {
+      if (!_ac) return;
+      const play = () => {
+        const osc = _ac.createOscillator();
+        const g = _ac.createGain();
+        osc.connect(g); g.connect(_ac.destination);
+        osc.type = 'triangle'; osc.frequency.value = f;
+        g.gain.setValueAtTime(0.4, _ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + 0.25);
+        osc.start(_ac.currentTime); osc.stop(_ac.currentTime + 0.28);
+      };
+      if (_ac.state==='running') play(); else _ac.resume().then(play);
+    }, i * 130);
+  });
+}
+
 function playStart() {
-  beep(880, 0.06, 0.3);
-  setTimeout(() => beep(1100, 0.1, 0.3), 100);
+  if (!_ac) return;
+  const play = () => {
+    const osc = _ac.createOscillator();
+    const g = _ac.createGain();
+    osc.connect(g); g.connect(_ac.destination);
+    osc.type='triangle'; osc.frequency.value=880;
+    g.gain.setValueAtTime(0.3, _ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime+0.1);
+    osc.start(_ac.currentTime); osc.stop(_ac.currentTime+0.15);
+  };
+  if (_ac.state==='running') play(); else _ac.resume().then(play);
+  setTimeout(()=>{
+    const play2=()=>{
+      const osc=_ac.createOscillator(),g=_ac.createGain();
+      osc.connect(g);g.connect(_ac.destination);
+      osc.type='triangle';osc.frequency.value=1100;
+      g.gain.setValueAtTime(0.3,_ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001,_ac.currentTime+0.1);
+      osc.start(_ac.currentTime);osc.stop(_ac.currentTime+0.15);
+    };
+    if(_ac.state==='running')play2();else _ac.resume().then(play2);
+  },110);
 }
 
 // =========================================================
 // SETUP UI
 // =========================================================
 function removeAccents(s) {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 }
-
 function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
   return arr;
 }
 
 function createWordRow(wd) {
   const row = document.createElement('div');
   row.className = 'word-row';
-
   const inp = document.createElement('input');
-  inp.type = 'text';
-  inp.value = wd.text;
-  inp.placeholder = 'Escribe una palabra o frase...';
-
-  const compWrap = document.createElement('div');
-  compWrap.className = 'complexity-wrap';
-  const lbl = document.createElement('label');
-  lbl.textContent = 'dif.';
-
-  const dots = document.createElement('div');
-  dots.className = 'complexity-dots';
-  row._complexity = wd.complexity;
-
-  for (let i = 1; i <= 3; i++) {
-    const d = document.createElement('span');
-    d.className = 'dot' + (wd.complexity >= i ? ' active' : '');
-    d.dataset.level = i;
-    d.title = COMPLEXITY_LABELS[i];
-    d.addEventListener('click', () => {
-      row._complexity = i;
-      dots.querySelectorAll('.dot').forEach((dot, idx) => {
-        dot.classList.toggle('active', idx < i);
-      });
+  inp.type='text'; inp.value=wd.text; inp.placeholder='Escribe una palabra o frase...';
+  const compWrap=document.createElement('div'); compWrap.className='complexity-wrap';
+  const lbl=document.createElement('label'); lbl.textContent='dif.';
+  const dots=document.createElement('div'); dots.className='complexity-dots';
+  row._complexity=wd.complexity;
+  for(let i=1;i<=3;i++){
+    const d=document.createElement('span');
+    d.className='dot'+(wd.complexity>=i?' active':'');
+    d.dataset.level=i; d.title=COMPLEXITY_LABELS[i];
+    d.addEventListener('click',()=>{
+      row._complexity=i;
+      dots.querySelectorAll('.dot').forEach((dot,idx)=>dot.classList.toggle('active',idx<i));
     });
     dots.appendChild(d);
   }
-
-  const delBtn = document.createElement('button');
-  delBtn.className = 'btn-del';
-  delBtn.innerHTML = '✕';
-  delBtn.addEventListener('click', () => row.remove());
-
-  compWrap.appendChild(lbl);
-  compWrap.appendChild(dots);
-  row.appendChild(inp);
-  row.appendChild(compWrap);
-  row.appendChild(delBtn);
-  row._input = inp;
+  const delBtn=document.createElement('button'); delBtn.className='btn-del'; delBtn.innerHTML='✕';
+  delBtn.addEventListener('click',()=>row.remove());
+  compWrap.appendChild(lbl); compWrap.appendChild(dots);
+  row.appendChild(inp); row.appendChild(compWrap); row.appendChild(delBtn);
+  row._input=inp;
   return row;
 }
 
-function addWordRow(wd = {text:'', complexity:1}) {
-  const c = document.getElementById('word-rows');
-  const row = createWordRow(wd);
-  c.appendChild(row);
-  row._input.focus();
+function addWordRow(wd={text:'',complexity:1}) {
+  const c=document.getElementById('word-rows');
+  const row=createWordRow(wd);
+  c.appendChild(row); row._input.focus();
 }
 
 function initSetup() {
-  const c = document.getElementById('word-rows');
-  c.innerHTML = '';
-  DEFAULT_WORDS.forEach(w => c.appendChild(createWordRow(w)));
+  const c=document.getElementById('word-rows');
+  c.innerHTML='';
+  DEFAULT_WORDS.forEach(w=>c.appendChild(createWordRow(w)));
 }
 
-let selectedSeconds = 120;
-function selectPreset(btn, sec) {
-  document.querySelectorAll('.time-preset').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  selectedSeconds = sec;
-  document.getElementById('custom-time-row').style.display = sec === 0 ? 'flex' : 'none';
+let selectedSeconds=120;
+function selectPreset(btn,sec){
+  document.querySelectorAll('.time-preset').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected'); selectedSeconds=sec;
+  document.getElementById('custom-time-row').style.display=sec===0?'flex':'none';
 }
-function getTimerSeconds() {
-  if (selectedSeconds === 0) {
-    const v = parseInt(document.getElementById('custom-min').value, 10);
-    return (isNaN(v) || v < 1 ? 4 : Math.min(v, 30)) * 60;
+function getTimerSeconds(){
+  if(selectedSeconds===0){
+    const v=parseInt(document.getElementById('custom-min').value,10);
+    return(isNaN(v)||v<1?4:Math.min(v,30))*60;
   }
   return selectedSeconds;
 }
@@ -327,179 +403,189 @@ function getTimerSeconds() {
 // =========================================================
 // GAME STATE
 // =========================================================
-let words = [];
-let currentIndex = 0;
-let currentOriginal = '';
-let currentMasked = [];
-let timerInterval = null;
-let timeLeft = 0;
-let isPaused = false;
+let words=[];
+let currentIndex=0;
+let currentOriginal='';
+let currentMasked=[];
+let timerInterval=null;
+let timeLeft=0;
+let isPaused=false;
+let wordCompleted=false;
 
-function startGame() {
-  // CRÍTICO: unlockAudio debe llamarse dentro del onclick
+function startGame(){
   unlockAudioSync();
-  playStart(); // pitido de prueba inmediato
+  soundEnabled=document.getElementById('sound-toggle').checked;
+  playStart();
 
-  soundEnabled = document.getElementById('sound-toggle').checked;
-
-  const rows = document.querySelectorAll('#word-rows .word-row');
-  words = [];
-  rows.forEach(row => {
-    const text = row._input.value.trim();
-    if (text) words.push({text, complexity: row._complexity || 1});
+  const rows=document.querySelectorAll('#word-rows .word-row');
+  words=[];
+  rows.forEach(row=>{
+    const text=row._input.value.trim();
+    if(text) words.push({text,complexity:row._complexity||1});
   });
-
-  if (words.length === 0) {
-    alert('Agrega al menos una palabra antes de empezar.');
-    return;
-  }
-
-  if (document.getElementById('shuffle-toggle').checked) shuffle(words);
-
-  currentIndex = 0;
+  if(words.length===0){alert('Agrega al menos una palabra antes de empezar.');return;}
+  if(document.getElementById('shuffle-toggle').checked) shuffle(words);
+  currentIndex=0;
   document.getElementById('setup-screen').classList.add('hidden');
   document.getElementById('game-screen').classList.remove('hidden');
   loadWord();
 }
 
-function returnToSetup() {
-  clearInterval(timerInterval);
-  timerInterval = null;
-  isPaused = false;
+function returnToSetup(){
+  clearInterval(timerInterval); timerInterval=null;
+  stopClockTick();
+  isPaused=false; wordCompleted=false;
   document.getElementById('pause-overlay').classList.remove('visible');
+  document.getElementById('win-overlay').classList.remove('visible');
   document.getElementById('setup-screen').classList.remove('hidden');
   document.getElementById('game-screen').classList.add('hidden');
 }
 
-function loadWord() {
-  if (currentIndex >= words.length) {
+function loadWord(){
+  if(currentIndex>=words.length){
     alert('¡Dinámica terminada! No hay más palabras en la lista.');
-    returnToSetup();
-    return;
+    returnToSetup(); return;
   }
+  wordCompleted=false;
+  const word=words[currentIndex];
+  currentOriginal=removeAccents(word.text).toUpperCase();
+  const prob=COMPLEXITY_PROB[word.complexity]||0.25;
 
-  const word = words[currentIndex];
-  currentOriginal = removeAccents(word.text).toUpperCase();
-  const prob = COMPLEXITY_PROB[word.complexity] || 0.25;
-
-  currentMasked = [];
-  let firstLetter = true;
-  for (let i = 0; i < currentOriginal.length; i++) {
-    const c = currentOriginal[i];
-    if (/[A-Z0-9]/.test(c)) {
-      if (firstLetter) {
-        currentMasked.push({char:c, state:'revealed'});
-        firstLetter = false;
-      } else {
-        currentMasked.push({char:c, state: Math.random() < prob ? 'hint' : 'hidden'});
-      }
+  currentMasked=[];
+  let firstLetter=true;
+  for(let i=0;i<currentOriginal.length;i++){
+    const c=currentOriginal[i];
+    if(/[A-Z0-9]/.test(c)){
+      if(firstLetter){currentMasked.push({char:c,state:'revealed'});firstLetter=false;}
+      else currentMasked.push({char:c,state:Math.random()<prob?'hint':'hidden'});
     } else {
-      currentMasked.push({char:c, state:'space'});
-      if (c === ' ') firstLetter = true;
+      currentMasked.push({char:c,state:'space'});
+      if(c===' ') firstLetter=true;
     }
   }
 
-  const badge = document.getElementById('complexity-badge');
-  badge.textContent = COMPLEXITY_LABELS[word.complexity];
-  badge.className = 'complexity-badge ' + COMPLEXITY_CLASSES[word.complexity];
-
-  document.getElementById('progress-label').textContent =
-    `Palabra ${currentIndex+1} de ${words.length}`;
-  document.getElementById('progress-fill').style.width =
-    (currentIndex / words.length * 100) + '%';
+  const badge=document.getElementById('complexity-badge');
+  badge.textContent=COMPLEXITY_LABELS[word.complexity];
+  badge.className='complexity-badge '+COMPLEXITY_CLASSES[word.complexity];
+  document.getElementById('progress-label').textContent=`Palabra ${currentIndex+1} de ${words.length}`;
+  document.getElementById('progress-fill').style.width=(currentIndex/words.length*100)+'%';
 
   updateDisplay();
   startTimer();
 }
 
-function updateDisplay() {
-  const el = document.getElementById('word-display');
-  el.innerHTML = currentMasked.map(m => {
-    if (m.state === 'space')    return m.char === ' '
-      ? '<span class="char-revealed">&nbsp;</span>'
-      : `<span class="char-revealed">${m.char}</span>`;
-    if (m.state === 'revealed') return `<span class="char-revealed">${m.char}</span>`;
-    if (m.state === 'hint')     return `<span class="char-hint">${m.char}</span>`;
+function checkWordComplete(){
+  const hasHidden=currentMasked.some(m=>m.state==='hidden');
+  if(!hasHidden && !wordCompleted){
+    wordCompleted=true;
+    stopClockTick();
+    clearInterval(timerInterval);
+    playWin();
+    // Mostrar la palabra completa (con tildes originales)
+    document.getElementById('win-word-text').textContent=words[currentIndex].text.toUpperCase();
+    // Si es la última palabra, cambiar el botón
+    const isLast=(currentIndex>=words.length-1);
+    const btn=document.getElementById('win-next-btn');
+    btn.textContent=isLast?'Finalizar dinámica ✓':'Siguiente palabra ▶';
+    setTimeout(()=>{
+      document.getElementById('win-overlay').classList.add('visible');
+    },400);
+  }
+}
+
+function winNext(){
+  document.getElementById('win-overlay').classList.remove('visible');
+  currentIndex++;
+  if(currentIndex>=words.length){
+    alert('¡Dinámica terminada! ¡Excelente trabajo!');
+    returnToSetup();
+  } else {
+    loadWord();
+  }
+}
+
+function updateDisplay(){
+  const el=document.getElementById('word-display');
+  el.innerHTML=currentMasked.map(m=>{
+    if(m.state==='space') return m.char===' '?'<span class="char-revealed">&nbsp;</span>':`<span class="char-revealed">${m.char}</span>`;
+    if(m.state==='revealed') return `<span class="char-revealed">${m.char}</span>`;
+    if(m.state==='hint')     return `<span class="char-hint">${m.char}</span>`;
     return `<span class="char-hidden">_</span>`;
   }).join('');
 }
 
-function startTimer() {
-  clearInterval(timerInterval);
-  timeLeft = getTimerSeconds();
-  isPaused = false;
-  lastTickSecond = -1;
+function startTimer(){
+  clearInterval(timerInterval); stopClockTick();
+  timeLeft=getTimerSeconds();
+  isPaused=false;
 
-  const btnPause = document.getElementById('btn-pause');
-  btnPause.innerHTML = '⏸ Pausar';
-  btnPause.className = 'ctrl-btn warn-btn';
+  const btnPause=document.getElementById('btn-pause');
+  btnPause.innerHTML='⏸ Pausar'; btnPause.className='ctrl-btn warn-btn';
   document.getElementById('pause-overlay').classList.remove('visible');
+  document.getElementById('win-overlay').classList.remove('visible');
 
   updateTimerDisplay();
+  startClockTick(); // ← reloj arranca aquí
 
-  timerInterval = setInterval(() => {
-    if (isPaused) return;
+  timerInterval=setInterval(()=>{
+    if(isPaused) return;
     timeLeft--;
     updateTimerDisplay();
-
-    if (soundEnabled && timeLeft > 0 && timeLeft <= 30 && timeLeft !== lastTickSecond) {
-      lastTickSecond = timeLeft;
-      playTick(timeLeft <= 10);
-    }
-
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      timeLeft = 0;
-      updateTimerDisplay();
+    if(timeLeft<=0){
+      clearInterval(timerInterval); timeLeft=0; updateTimerDisplay();
       playTimeUp();
-      isPaused = true;
-      document.getElementById('btn-pause').innerHTML = '▶ Reanudar';
-      document.getElementById('btn-pause').className = 'ctrl-btn';
+      isPaused=true;
+      document.getElementById('btn-pause').innerHTML='▶ Reanudar';
+      document.getElementById('btn-pause').className='ctrl-btn';
       document.getElementById('pause-overlay').classList.add('visible');
     }
-  }, 1000);
+  },1000);
 }
 
-function updateTimerDisplay() {
-  const el = document.getElementById('timer');
-  const m = Math.floor(timeLeft/60).toString().padStart(2,'0');
-  const s = (timeLeft%60).toString().padStart(2,'0');
-  el.textContent = `${m}:${s}`;
-  el.className = 'timer-display';
-  if (timeLeft <= 10) el.classList.add('danger');
-  else if (timeLeft <= 30) el.classList.add('warn');
+function updateTimerDisplay(){
+  const el=document.getElementById('timer');
+  const m=Math.floor(timeLeft/60).toString().padStart(2,'0');
+  const s=(timeLeft%60).toString().padStart(2,'0');
+  el.textContent=`${m}:${s}`;
+  el.className='timer-display';
+  if(timeLeft<=10) el.classList.add('danger');
+  else if(timeLeft<=30) el.classList.add('warn');
 }
 
-function togglePause() {
-  isPaused = !isPaused;
-  const btn = document.getElementById('btn-pause');
-  if (isPaused) {
-    btn.innerHTML = '▶ Reanudar';
-    btn.className = 'ctrl-btn';
+function togglePause(){
+  if(wordCompleted) return;
+  isPaused=!isPaused;
+  const btn=document.getElementById('btn-pause');
+  if(isPaused){
+    btn.innerHTML='▶ Reanudar'; btn.className='ctrl-btn';
     document.getElementById('pause-overlay').classList.add('visible');
+    // El tick se "pausa" porque el setInterval chequea isPaused
   } else {
-    btn.innerHTML = '⏸ Pausar';
-    btn.className = 'ctrl-btn warn-btn';
+    btn.innerHTML='⏸ Pausar'; btn.className='ctrl-btn warn-btn';
     document.getElementById('pause-overlay').classList.remove('visible');
+    // Asegura que el tick siga si el intervalo existe
+    if(!tickInterval) startClockTick();
   }
 }
 
-function nextWord() {
+function nextWord(){
   currentIndex++;
   loadWord();
 }
 
-window.addEventListener('keydown', e => {
-  if (document.getElementById('game-screen').classList.contains('hidden')) return;
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  if (e.ctrlKey || e.altKey || e.metaKey) return;
-  if (e.key === ' ') { e.preventDefault(); togglePause(); return; }
-  const key = removeAccents(e.key).toUpperCase();
-  if (/^[A-Z0-9]$/.test(key)) {
-    for (let i = 0; i < currentOriginal.length; i++) {
-      if (currentOriginal[i] === key && currentMasked[i].state === 'hidden') {
-        currentMasked[i].state = 'revealed';
+window.addEventListener('keydown',e=>{
+  if(document.getElementById('game-screen').classList.contains('hidden')) return;
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if(e.ctrlKey||e.altKey||e.metaKey) return;
+  if(e.key===' '){e.preventDefault();togglePause();return;}
+  if(wordCompleted) return; // no aceptar más letras si ya se completó
+  const key=removeAccents(e.key).toUpperCase();
+  if(/^[A-Z0-9]$/.test(key)){
+    for(let i=0;i<currentOriginal.length;i++){
+      if(currentOriginal[i]===key&&currentMasked[i].state==='hidden'){
+        currentMasked[i].state='revealed';
         updateDisplay();
+        checkWordComplete(); // ← verifica completado después de cada letra
         break;
       }
     }
