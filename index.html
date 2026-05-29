@@ -175,37 +175,64 @@ const COMPLEXITY_LABELS = {1:"Fácil", 2:"Medio", 3:"Difícil"};
 const COMPLEXITY_CLASSES = {1:"easy", 2:"medium", 3:"hard"};
 
 // =========================================================
-// AUDIO  – creamos el contexto en el primer gesto del usuario
+// AUDIO
+// La única regla: crear y resumir el AudioContext DENTRO
+// de un handler onclick (gesto directo). Luego beep() lo
+// llama con resume() async por si se suspende entre clicks.
 // =========================================================
 let _ac = null;
 let soundEnabled = true;
 let lastTickSecond = -1;
 
-function unlockAudio() {
-  // Llamado desde un click: crea y desbloquea el AudioContext
+function createCtx() {
   if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
-  if (_ac.state === 'suspended') _ac.resume();
 }
 
+// Llamado siempre dentro de un onclick — desbloquea el contexto
+function unlockAudioSync() {
+  createCtx();
+  // resume() es async pero llamarlo dentro del gesto lo desbloquea
+  if (_ac.state !== 'running') _ac.resume();
+}
+
+// Toca un beep. Si el contexto está suspendido lo resume primero (async).
 function beep(freq, dur, vol) {
-  if (!soundEnabled || !_ac || _ac.state !== 'running') return;
-  try {
-    const osc = _ac.createOscillator();
-    const g   = _ac.createGain();
-    osc.connect(g);
-    g.connect(_ac.destination);
-    osc.type = 'square';
-    osc.frequency.value = freq;
-    g.gain.setValueAtTime(vol, _ac.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + dur);
-    osc.start(_ac.currentTime);
-    osc.stop(_ac.currentTime + dur + 0.02);
-  } catch(e) {}
+  if (!soundEnabled || !_ac) return;
+  const play = () => {
+    try {
+      const osc = _ac.createOscillator();
+      const g   = _ac.createGain();
+      osc.connect(g);
+      g.connect(_ac.destination);
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(vol, _ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + dur);
+      osc.start(_ac.currentTime);
+      osc.stop(_ac.currentTime + dur + 0.02);
+    } catch(e) {}
+  };
+  if (_ac.state === 'running') {
+    play();
+  } else {
+    _ac.resume().then(play);
+  }
 }
 
-function playTick(urgent) { beep(urgent ? 1050 : 720, 0.07, 0.35); }
+function playTick(urgent) {
+  beep(urgent ? 1050 : 720, 0.08, 0.4);
+}
+
 function playTimeUp() {
-  [659,587,523,392].forEach((f,i) => setTimeout(() => beep(f, 0.2, 0.4), i*210));
+  [659,587,523,392].forEach((f,i) => {
+    setTimeout(() => beep(f, 0.2, 0.45), i * 220);
+  });
+}
+
+// Pitido de confirmación al iniciar (verifica que el audio funcione)
+function playStart() {
+  beep(880, 0.06, 0.3);
+  setTimeout(() => beep(1100, 0.1, 0.3), 100);
 }
 
 // =========================================================
