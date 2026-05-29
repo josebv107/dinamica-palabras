@@ -6,551 +6,145 @@
 <title>Dinámica de Palabras</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;600;700;800&display=swap');
+:root{--bg:#06090F;--surface:#0D1421;--surface2:#131E30;--border:#1E2D45;--accent:#1D9EFF;--accent-dim:rgba(29,158,255,0.12);--accent-dim2:rgba(29,158,255,0.06);--text:#EDF2F8;--text-muted:#7A96B4;--text-faint:#3A5070;--danger:#FF4A4A;--warn:#F59E0B;--green:#22C55E;--word-font:'Space Mono',monospace;--ui-font:'Outfit',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center}
+.hidden{display:none!important}
 
-:root {
-  --bg: #06090F;
-  --surface: #0D1421;
-  --surface2: #131E30;
-  --border: #1E2D45;
-  --accent: #1D9EFF;
-  --accent-dim: rgba(29,158,255,0.12);
-  --accent-dim2: rgba(29,158,255,0.06);
-  --text: #EDF2F8;
-  --text-muted: #7A96B4;
-  --text-faint: #3A5070;
-  --danger: #FF4A4A;
-  --warn: #F59E0B;
-  --green: #22C55E;
-  --word-font: 'Space Mono', monospace;
-  --ui-font: 'Outfit', sans-serif;
-}
+/* SETUP */
+#setup-screen{width:100%;max-width:780px;padding:20px}
+.setup-header{text-align:center;margin-bottom:32px}
+.setup-header h1{font-size:2.2em;font-weight:800;color:var(--accent);letter-spacing:-1px;font-family:var(--word-font)}
+.setup-header p{color:var(--text-muted);margin-top:6px;font-size:.95em}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:16px}
+.panel-title{font-size:.78em;text-transform:uppercase;letter-spacing:2px;color:var(--text-muted);margin-bottom:16px;font-weight:600}
+.word-rows{display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto;padding-right:4px}
+.word-rows::-webkit-scrollbar{width:4px}
+.word-rows::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.word-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;transition:border-color .2s}
+.word-row:hover{border-color:var(--accent)}
+.word-row input[type=text]{background:transparent;border:none;outline:none;color:var(--text);font-family:var(--word-font);font-size:1em;width:100%;min-width:0}
+.word-row input[type=text]::placeholder{color:var(--text-faint)}
+.complexity-wrap{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:4px 8px;white-space:nowrap}
+.complexity-wrap label{font-size:.72em;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+.complexity-dots{display:flex;gap:3px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--text-faint);cursor:pointer;transition:background .15s,transform .15s}
+.dot:hover{transform:scale(1.3)}
+.dot.active{background:var(--accent)}
+.dot[data-level="2"].active{background:var(--warn)}
+.dot[data-level="3"].active{background:var(--danger)}
+.btn-del{background:transparent;border:none;color:var(--text-faint);cursor:pointer;font-size:1.1em;padding:4px;border-radius:6px;transition:color .2s,background .2s;display:flex;align-items:center}
+.btn-del:hover{color:var(--danger);background:rgba(255,74,74,.1)}
+.add-word-btn{width:100%;background:var(--accent-dim2);border:1px dashed var(--border);color:var(--text-muted);font-family:var(--ui-font);font-size:.9em;padding:10px;border-radius:10px;cursor:pointer;margin-top:10px;transition:all .2s}
+.add-word-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.timer-config{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.time-preset{background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);font-family:var(--ui-font);font-size:.9em;padding:8px 16px;border-radius:8px;cursor:pointer;transition:all .2s}
+.time-preset:hover,.time-preset.selected{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.custom-time{display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:.9em}
+.custom-time input{width:55px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--ui-font);font-size:.9em;padding:7px 10px;border-radius:8px;outline:none;text-align:center;transition:border-color .2s}
+.custom-time input:focus{border-color:var(--accent)}
+.sound-row{display:flex;align-items:center;justify-content:space-between}
+.toggle-switch{position:relative;width:44px;height:24px}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-thumb{position:absolute;inset:0;background:var(--text-faint);border-radius:24px;cursor:pointer;transition:background .3s}
+.toggle-thumb::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:white;border-radius:50%;transition:transform .3s}
+.toggle-switch input:checked+.toggle-thumb{background:var(--accent)}
+.toggle-switch input:checked+.toggle-thumb::before{transform:translateX(20px)}
+.start-btn{width:100%;background:var(--accent);border:none;color:white;font-family:var(--ui-font);font-size:1.25em;font-weight:700;padding:18px;border-radius:14px;cursor:pointer;margin-top:6px;letter-spacing:.5px;transition:all .2s}
+.start-btn:hover{background:#3AAFFF;box-shadow:0 4px 24px rgba(29,158,255,.35);transform:translateY(-1px)}
+.start-btn:active{transform:translateY(1px)}
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: var(--ui-font);
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hidden { display: none !important; }
-
-/* ====== SETUP SCREEN ====== */
-#setup-screen {
-  width: 100%;
-  max-width: 780px;
-  padding: 20px;
-}
-
-.setup-header {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.setup-header h1 {
-  font-size: 2.2em;
-  font-weight: 800;
-  color: var(--accent);
-  letter-spacing: -1px;
-  font-family: var(--word-font);
-}
-
-.setup-header p {
-  color: var(--text-muted);
-  margin-top: 6px;
-  font-size: 0.95em;
-}
-
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 24px;
-  margin-bottom: 16px;
-}
-
-.panel-title {
-  font-size: 0.78em;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--text-muted);
-  margin-bottom: 16px;
-  font-weight: 600;
-}
-
-/* Word list */
-.word-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 380px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.word-rows::-webkit-scrollbar { width: 4px; }
-.word-rows::-webkit-scrollbar-track { background: transparent; }
-.word-rows::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-.word-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 8px;
-  align-items: center;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  transition: border-color 0.2s;
-}
-
-.word-row:hover { border-color: var(--accent); }
-
-.word-row input[type="text"] {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text);
-  font-family: var(--word-font);
-  font-size: 1em;
-  width: 100%;
-  min-width: 0;
-}
-
-.word-row input[type="text"]::placeholder { color: var(--text-faint); }
-
-.complexity-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px 8px;
-  white-space: nowrap;
-}
-
-.complexity-wrap label {
-  font-size: 0.72em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.complexity-dots {
-  display: flex;
-  gap: 3px;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-faint);
-  cursor: pointer;
-  transition: background 0.15s, transform 0.15s;
-}
-
-.dot:hover { transform: scale(1.3); }
-.dot.active { background: var(--accent); }
-.dot[data-level="2"].active { background: var(--warn); }
-.dot[data-level="3"].active { background: var(--danger); }
-
-.btn-del {
-  background: transparent;
-  border: none;
-  color: var(--text-faint);
-  cursor: pointer;
-  font-size: 1.1em;
-  padding: 4px;
-  border-radius: 6px;
-  transition: color 0.2s, background 0.2s;
-  display: flex;
-  align-items: center;
-}
-
-.btn-del:hover { color: var(--danger); background: rgba(255,74,74,0.1); }
-
-.add-word-btn {
-  width: 100%;
-  background: var(--accent-dim2);
-  border: 1px dashed var(--border);
-  color: var(--text-muted);
-  font-family: var(--ui-font);
-  font-size: 0.9em;
-  padding: 10px;
-  border-radius: 10px;
-  cursor: pointer;
-  margin-top: 10px;
-  transition: all 0.2s;
-}
-
-.add-word-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-dim);
-}
-
-/* Timer config */
-.timer-config {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.time-preset {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-family: var(--ui-font);
-  font-size: 0.9em;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.time-preset:hover, .time-preset.selected {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-dim);
-}
-
-.custom-time {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-muted);
-  font-size: 0.9em;
-}
-
-.custom-time input {
-  width: 55px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: var(--ui-font);
-  font-size: 0.9em;
-  padding: 7px 10px;
-  border-radius: 8px;
-  outline: none;
-  text-align: center;
-  transition: border-color 0.2s;
-}
-
-.custom-time input:focus { border-color: var(--accent); }
-
-/* Sound toggle */
-.sound-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.toggle-switch {
-  position: relative;
-  width: 44px;
-  height: 24px;
-}
-
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
-
-.toggle-thumb {
-  position: absolute;
-  inset: 0;
-  background: var(--text-faint);
-  border-radius: 24px;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.toggle-thumb::before {
-  content: '';
-  position: absolute;
-  width: 18px; height: 18px;
-  left: 3px; top: 3px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.3s;
-}
-
-.toggle-switch input:checked + .toggle-thumb { background: var(--accent); }
-.toggle-switch input:checked + .toggle-thumb::before { transform: translateX(20px); }
-
-.start-btn {
-  width: 100%;
-  background: var(--accent);
-  border: none;
-  color: white;
-  font-family: var(--ui-font);
-  font-size: 1.25em;
-  font-weight: 700;
-  padding: 18px;
-  border-radius: 14px;
-  cursor: pointer;
-  margin-top: 6px;
-  letter-spacing: 0.5px;
-  transition: all 0.2s;
-  box-shadow: 0 0 0 0 rgba(29,158,255,0.4);
-}
-
-.start-btn:hover {
-  background: #3AAFFF;
-  box-shadow: 0 4px 24px rgba(29,158,255,0.35);
-  transform: translateY(-1px);
-}
-
-.start-btn:active { transform: translateY(1px); }
-
-/* ====== GAME SCREEN ====== */
-#game-screen {
-  width: 100%;
-  max-width: 1100px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  gap: 0;
-}
-
-/* Progress bar */
-.progress-bar-wrap {
-  width: 100%;
-  height: 3px;
-  background: var(--surface2);
-  border-radius: 3px;
-  margin-bottom: 40px;
-  overflow: hidden;
-}
-
-.progress-bar-fill {
-  height: 100%;
-  background: var(--accent);
-  border-radius: 3px;
-  transition: width 0.4s ease;
-}
-
-/* Timer */
-.timer-display {
-  font-family: var(--word-font);
-  font-size: clamp(5rem, 14vw, 9rem);
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 4px;
-  line-height: 1;
-  transition: color 0.3s;
-  margin-bottom: 12px;
-}
-
-.timer-display.warn { color: var(--warn); }
-.timer-display.danger { color: var(--danger); animation: pulse-red 0.5s ease-in-out infinite alternate; }
-
-@keyframes pulse-red {
-  from { opacity: 1; }
-  to { opacity: 0.6; }
-}
-
-.progress-label {
-  font-size: 0.85em;
-  color: var(--text-faint);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-bottom: 48px;
-}
-
-/* Word area */
-.word-area {
-  margin: 0 0 60px;
-  min-height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 0 10px;
-}
-
-.word-display {
-  font-family: var(--word-font);
-  font-size: clamp(2.8rem, 7vw, 5.5rem);
-  letter-spacing: 14px;
-  font-weight: 700;
-  text-align: center;
-  color: var(--text);
-  line-height: 1.3;
-  word-break: break-word;
-}
-
-.char-revealed { color: var(--text); }
-.char-hint { color: var(--accent); }
-.char-hidden { color: var(--text-faint); }
-
-/* Controls */
-.controls {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-}
-
-.ctrl-btn {
-  font-family: var(--ui-font);
-  font-size: 1em;
-  font-weight: 600;
-  padding: 14px 28px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ctrl-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
-.ctrl-btn:active { transform: translateY(1px); }
-
-.ctrl-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
-.ctrl-btn.primary:hover { background: #3AAFFF; }
-
-.ctrl-btn.warn-btn { border-color: rgba(245,158,11,0.4); color: var(--warn); }
-.ctrl-btn.warn-btn:hover { background: rgba(245,158,11,0.1); }
-
-.ctrl-btn.danger-btn { border-color: rgba(255,74,74,0.4); color: var(--danger); }
-.ctrl-btn.danger-btn:hover { background: rgba(255,74,74,0.1); }
-
-/* Pause overlay */
-.pause-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(6,9,15,0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  backdrop-filter: blur(4px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s;
-}
-
-.pause-overlay.visible {
-  opacity: 1;
-  pointer-events: all;
-}
-
-.pause-card {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 1.3em;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  font-family: var(--word-font);
-}
-
-/* Complexity badge on game screen */
-.complexity-badge {
-  font-size: 0.72em;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  margin-bottom: 16px;
-  font-weight: 600;
-}
-
-.complexity-badge.easy { background: rgba(29,158,255,0.12); color: var(--accent); }
-.complexity-badge.medium { background: rgba(245,158,11,0.12); color: var(--warn); }
-.complexity-badge.hard { background: rgba(255,74,74,0.12); color: var(--danger); }
-
-/* Edit button on game screen */
-.btn-edit-game {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-family: var(--ui-font);
-  font-size: 0.85em;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  z-index: 50;
-}
-
-.btn-edit-game:hover { color: var(--text); border-color: var(--accent); }
+/* GAME */
+#game-screen{width:100%;max-width:1100px;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
+.progress-bar-wrap{width:100%;height:3px;background:var(--surface2);border-radius:3px;margin-bottom:40px;overflow:hidden}
+.progress-bar-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .4s ease}
+.timer-display{font-family:var(--word-font);font-size:clamp(5rem,14vw,9rem);font-weight:700;color:var(--accent);letter-spacing:4px;line-height:1;margin-bottom:12px}
+.timer-display.warn{color:var(--warn)}
+.timer-display.danger{color:var(--danger);animation:pulse-red .5s ease-in-out infinite alternate}
+@keyframes pulse-red{from{opacity:1}to{opacity:.6}}
+.progress-label{font-size:.85em;color:var(--text-faint);letter-spacing:2px;text-transform:uppercase;margin-bottom:48px}
+.word-area{margin:0 0 60px;min-height:140px;display:flex;align-items:center;justify-content:center;width:100%;padding:0 10px}
+.word-display{font-family:var(--word-font);font-size:clamp(2.8rem,7vw,5.5rem);letter-spacing:14px;font-weight:700;text-align:center;color:var(--text);line-height:1.3;word-break:break-word}
+.char-revealed{color:var(--text)}
+.char-hint{color:var(--accent)}
+.char-hidden{color:var(--text-faint)}
+.controls{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;align-items:center}
+.ctrl-btn{font-family:var(--ui-font);font-size:1em;font-weight:600;padding:14px 28px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px}
+.ctrl-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.ctrl-btn:active{transform:translateY(1px)}
+.ctrl-btn.primary{background:var(--accent);border-color:var(--accent);color:white}
+.ctrl-btn.primary:hover{background:#3AAFFF}
+.ctrl-btn.warn-btn{border-color:rgba(245,158,11,.4);color:var(--warn)}
+.ctrl-btn.warn-btn:hover{background:rgba(245,158,11,.1)}
+.ctrl-btn.danger-btn{border-color:rgba(255,74,74,.4);color:var(--danger)}
+.ctrl-btn.danger-btn:hover{background:rgba(255,74,74,.1)}
+.pause-overlay{position:fixed;inset:0;background:rgba(6,9,15,.85);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .3s}
+.pause-overlay.visible{opacity:1;pointer-events:all}
+.pause-card{text-align:center;color:var(--text-muted);font-size:1.3em;letter-spacing:3px;text-transform:uppercase;font-family:var(--word-font)}
+.complexity-badge{font-size:.72em;text-transform:uppercase;letter-spacing:2px;padding:4px 10px;border-radius:6px;margin-bottom:16px;font-weight:600}
+.complexity-badge.easy{background:rgba(29,158,255,.12);color:var(--accent)}
+.complexity-badge.medium{background:rgba(245,158,11,.12);color:var(--warn)}
+.complexity-badge.hard{background:rgba(255,74,74,.12);color:var(--danger)}
+.btn-edit-game{position:fixed;top:20px;right:20px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);font-family:var(--ui-font);font-size:.85em;padding:8px 14px;border-radius:8px;cursor:pointer;transition:all .2s;z-index:50}
+.btn-edit-game:hover{color:var(--text);border-color:var(--accent)}
 </style>
 </head>
 <body>
 
-<!-- ===== SETUP SCREEN ===== -->
 <div id="setup-screen">
   <div class="setup-header">
     <h1>D_NAMICA</h1>
     <p>Edita las palabras, ajusta la complejidad y empieza la proyección</p>
   </div>
-
   <div class="panel">
     <div class="panel-title">Lista de palabras</div>
     <div class="word-rows" id="word-rows"></div>
     <button class="add-word-btn" onclick="addWordRow()">+ Agregar palabra o frase</button>
   </div>
-
   <div class="panel">
     <div class="panel-title">Tiempo por palabra</div>
     <div class="timer-config">
-      <button class="time-preset selected" data-sec="120" onclick="selectPreset(this,120)">2 min</button>
-      <button class="time-preset" data-sec="180" onclick="selectPreset(this,180)">3 min</button>
-      <button class="time-preset" data-sec="300" onclick="selectPreset(this,300)">5 min</button>
-      <button class="time-preset" data-sec="0" onclick="selectPreset(this,0)">Personalizado</button>
+      <button class="time-preset selected" onclick="selectPreset(this,120)">2 min</button>
+      <button class="time-preset" onclick="selectPreset(this,180)">3 min</button>
+      <button class="time-preset" onclick="selectPreset(this,300)">5 min</button>
+      <button class="time-preset" onclick="selectPreset(this,0)">Personalizado</button>
       <div class="custom-time" id="custom-time-row" style="display:none">
-        <input type="number" id="custom-min" value="4" min="1" max="30" placeholder="min">
+        <input type="number" id="custom-min" value="4" min="1" max="30">
         <span>min</span>
       </div>
     </div>
   </div>
-
   <div class="panel">
     <div class="panel-title">Opciones</div>
-    <div class="sound-row">
-      <span style="color: var(--text-muted); font-size:0.95em">Sonido de temporizador (tick)</span>
+    <div class="sound-row" style="margin-bottom:14px">
+      <span style="color:var(--text-muted);font-size:.95em">Sonido de temporizador (tick)</span>
       <label class="toggle-switch">
         <input type="checkbox" id="sound-toggle" checked>
         <span class="toggle-thumb"></span>
       </label>
     </div>
+    <div class="sound-row">
+      <span style="color:var(--text-muted);font-size:.95em">Mezclar palabras aleatoriamente</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="shuffle-toggle" checked>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>
   </div>
-
   <button class="start-btn" onclick="startGame()">Empezar Proyección ▶</button>
 </div>
 
-<!-- ===== GAME SCREEN ===== -->
 <div id="game-screen" class="hidden">
   <button class="btn-edit-game" onclick="returnToSetup()">✎ Editar lista</button>
-
   <div class="progress-bar-wrap">
     <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
   </div>
-
   <div class="timer-display" id="timer">02:00</div>
   <div class="progress-label" id="progress-label">Palabra 1 de 10</div>
-
   <div class="complexity-badge easy" id="complexity-badge">Fácil</div>
-
   <div class="word-area">
     <div class="word-display" id="word-display"></div>
   </div>
-
   <div class="controls">
     <button class="ctrl-btn warn-btn" id="btn-pause" onclick="togglePause()">⏸ Pausar</button>
     <button class="ctrl-btn primary" onclick="nextWord()">⏭ Siguiente</button>
@@ -558,91 +152,85 @@ body {
   </div>
 </div>
 
-<!-- Pause overlay -->
 <div class="pause-overlay" id="pause-overlay">
-  <div class="pause-card">⏸ Pausado<br><span style="font-size:0.55em;letter-spacing:1px;opacity:0.5;margin-top:10px;display:block">Presiona Reanudar para continuar</span></div>
+  <div class="pause-card">⏸ Pausado<br><span style="font-size:.55em;letter-spacing:1px;opacity:.5;margin-top:10px;display:block">Presiona Reanudar para continuar</span></div>
 </div>
 
 <script>
-// =========================================================
-// DEFAULT WORD LIST
-// =========================================================
 const DEFAULT_WORDS = [
-  { text: "Maria", complexity: 1 },
-  { text: "Jesus Sana", complexity: 1 },
-  { text: "Jesus Salva", complexity: 1 },
-  { text: "Dios es Amor", complexity: 2 },
-  { text: "Aleluya", complexity: 1 },
-  { text: "Santo Santo Santo", complexity: 2 },
-  { text: "Espiritu Santo", complexity: 3 },
-  { text: "Gracia y Misericordia", complexity: 3 },
+  {text:"No vales nada",complexity:3},
+  {text:"Nunca cambiarás",complexity:3},
+  {text:"No eres suficiente",complexity:3},
+  {text:"A veces esperamos amor y recibimos indiferencia",complexity:1},
+  {text:"Esperamos apoyo y recibimos indiferencia",complexity:1},
+  {text:"Solo Jesus puede restaurar tu corazón",complexity:2},
+  {text:"Para Dios eres importante",complexity:3},
+  {text:"En Cristo siempre hay una oportunidad",complexity:2},
+  {text:"En Jesús hay salvación",complexity:3},
+  {text:"Por fuera puede verse bien pero por dentro está destrozada",complexity:1},
 ];
 
-// Complexity → reveal probability for non-first letters
-// 1=Easy: 40% revealed | 2=Medium: 20% | 3=Hard: 5%
-const COMPLEXITY_PROB = { 1: 0.40, 2: 0.20, 3: 0.05 };
-const COMPLEXITY_LABELS = { 1: "Fácil", 2: "Medio", 3: "Difícil" };
-const COMPLEXITY_CLASSES = { 1: "easy", 2: "medium", 3: "hard" };
+const COMPLEXITY_PROB = {1:0.40, 2:0.20, 3:0.05};
+const COMPLEXITY_LABELS = {1:"Fácil", 2:"Medio", 3:"Difícil"};
+const COMPLEXITY_CLASSES = {1:"easy", 2:"medium", 3:"hard"};
 
 // =========================================================
-// AUDIO ENGINE
+// AUDIO  – creamos el contexto en el primer gesto del usuario
 // =========================================================
-let audioCtx = null;
+let _ac = null;
+let soundEnabled = true;
 let lastTickSecond = -1;
 
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
+function unlockAudio() {
+  // Llamado desde un click: crea y desbloquea el AudioContext
+  if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (_ac.state === 'suspended') _ac.resume();
 }
 
-function playTick(isUrgent = false) {
+function beep(freq, dur, vol) {
+  if (!soundEnabled || !_ac || _ac.state !== 'running') return;
   try {
-    const ctx = getAudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(isUrgent ? 880 : 660, ctx.currentTime);
-    gain.gain.setValueAtTime(0.18, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.1);
+    const osc = _ac.createOscillator();
+    const g   = _ac.createGain();
+    osc.connect(g);
+    g.connect(_ac.destination);
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(vol, _ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + dur);
+    osc.start(_ac.currentTime);
+    osc.stop(_ac.currentTime + dur + 0.02);
   } catch(e) {}
 }
 
+function playTick(urgent) { beep(urgent ? 1050 : 720, 0.07, 0.35); }
 function playTimeUp() {
-  try {
-    const ctx = getAudioCtx();
-    [0, 0.18, 0.36, 0.54].forEach((t, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(i < 2 ? 523 : 392, ctx.currentTime + t);
-      gain.gain.setValueAtTime(0.22, ctx.currentTime + t);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.15);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.18);
-    });
-  } catch(e) {}
+  [659,587,523,392].forEach((f,i) => setTimeout(() => beep(f, 0.2, 0.4), i*210));
 }
 
 // =========================================================
 // SETUP UI
 // =========================================================
-function removeAccents(str) {
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+function removeAccents(s) {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 }
 
-function createWordRow(wordData) {
+function shuffle(arr) {
+  // Fisher-Yates
+  for (let i = arr.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function createWordRow(wd) {
   const row = document.createElement('div');
   row.className = 'word-row';
 
   const inp = document.createElement('input');
   inp.type = 'text';
-  inp.value = wordData.text;
+  inp.value = wd.text;
   inp.placeholder = 'Escribe una palabra o frase...';
 
   const compWrap = document.createElement('div');
@@ -652,26 +240,25 @@ function createWordRow(wordData) {
 
   const dots = document.createElement('div');
   dots.className = 'complexity-dots';
+  row._complexity = wd.complexity;
+
   for (let i = 1; i <= 3; i++) {
     const d = document.createElement('span');
-    d.className = 'dot' + (wordData.complexity >= i ? ' active' : '');
+    d.className = 'dot' + (wd.complexity >= i ? ' active' : '');
     d.dataset.level = i;
     d.title = COMPLEXITY_LABELS[i];
     d.addEventListener('click', () => {
-      const newLevel = i;
-      row._complexity = newLevel;
+      row._complexity = i;
       dots.querySelectorAll('.dot').forEach((dot, idx) => {
-        dot.classList.toggle('active', idx < newLevel);
+        dot.classList.toggle('active', idx < i);
       });
     });
     dots.appendChild(d);
   }
-  row._complexity = wordData.complexity;
 
   const delBtn = document.createElement('button');
   delBtn.className = 'btn-del';
   delBtn.innerHTML = '✕';
-  delBtn.title = 'Eliminar';
   delBtn.addEventListener('click', () => row.remove());
 
   compWrap.appendChild(lbl);
@@ -683,32 +270,30 @@ function createWordRow(wordData) {
   return row;
 }
 
-function addWordRow(wordData = { text: '', complexity: 1 }) {
-  const container = document.getElementById('word-rows');
-  const row = createWordRow(wordData);
-  container.appendChild(row);
+function addWordRow(wd = {text:'', complexity:1}) {
+  const c = document.getElementById('word-rows');
+  const row = createWordRow(wd);
+  c.appendChild(row);
   row._input.focus();
 }
 
 function initSetup() {
-  const container = document.getElementById('word-rows');
-  container.innerHTML = '';
-  DEFAULT_WORDS.forEach(w => container.appendChild(createWordRow(w)));
+  const c = document.getElementById('word-rows');
+  c.innerHTML = '';
+  DEFAULT_WORDS.forEach(w => c.appendChild(createWordRow(w)));
 }
 
 let selectedSeconds = 120;
-
 function selectPreset(btn, sec) {
   document.querySelectorAll('.time-preset').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   selectedSeconds = sec;
-  document.getElementById('custom-time-row').style.display = sec === 0 ? 'flex' : 'none';
+  document.getElementById('custom-time-row').style.display = sec===0 ? 'flex' : 'none';
 }
-
 function getTimerSeconds() {
   if (selectedSeconds === 0) {
-    const val = parseInt(document.getElementById('custom-min').value, 10);
-    return (isNaN(val) || val < 1 ? 4 : Math.min(val, 30)) * 60;
+    const v = parseInt(document.getElementById('custom-min').value, 10);
+    return (isNaN(v)||v<1 ? 4 : Math.min(v,30)) * 60;
   }
   return selectedSeconds;
 }
@@ -722,26 +307,24 @@ let currentOriginal = '';
 let currentMasked = [];
 let timerInterval = null;
 let timeLeft = 0;
-let totalTime = 0;
 let isPaused = false;
-let soundEnabled = true;
 
 function startGame() {
+  // Desbloquear audio en este gesto de usuario
+  unlockAudio();
+
   const rows = document.querySelectorAll('#word-rows .word-row');
   words = [];
   rows.forEach(row => {
     const text = row._input.value.trim();
-    if (text) words.push({ text, complexity: row._complexity || 1 });
+    if (text) words.push({text, complexity: row._complexity || 1});
   });
 
-  if (words.length === 0) {
-    alert('Agrega al menos una palabra antes de empezar.');
-    return;
-  }
+  if (words.length === 0) { alert('Agrega al menos una palabra antes de empezar.'); return; }
 
   soundEnabled = document.getElementById('sound-toggle').checked;
-  // Resume audio context if needed
-  if (soundEnabled && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  const doShuffle = document.getElementById('shuffle-toggle').checked;
+  if (doShuffle) shuffle(words);
 
   currentIndex = 0;
   document.getElementById('setup-screen').classList.add('hidden');
@@ -770,32 +353,30 @@ function loadWord() {
   const prob = COMPLEXITY_PROB[word.complexity] || 0.25;
 
   currentMasked = [];
-  let firstLetterOfWord = true;
+  let firstLetter = true;
   for (let i = 0; i < currentOriginal.length; i++) {
     const c = currentOriginal[i];
     if (/[A-Z0-9]/.test(c)) {
-      if (firstLetterOfWord) {
-        currentMasked.push({ char: c, state: 'revealed' }); // first letter always shown
-        firstLetterOfWord = false;
+      if (firstLetter) {
+        currentMasked.push({char:c, state:'revealed'});
+        firstLetter = false;
       } else {
-        currentMasked.push({ char: c, state: Math.random() < prob ? 'hint' : 'hidden' });
+        currentMasked.push({char:c, state: Math.random()<prob ? 'hint' : 'hidden'});
       }
     } else {
-      currentMasked.push({ char: c, state: 'space' });
-      if (c === ' ') firstLetterOfWord = true;
+      currentMasked.push({char:c, state:'space'});
+      if (c===' ') firstLetter = true;
     }
   }
 
-  // Update complexity badge
   const badge = document.getElementById('complexity-badge');
   badge.textContent = COMPLEXITY_LABELS[word.complexity];
   badge.className = 'complexity-badge ' + COMPLEXITY_CLASSES[word.complexity];
 
-  // Update progress
   document.getElementById('progress-label').textContent =
-    `Palabra ${currentIndex + 1} de ${words.length}`;
+    `Palabra ${currentIndex+1} de ${words.length}`;
   document.getElementById('progress-fill').style.width =
-    ((currentIndex) / words.length * 100) + '%';
+    (currentIndex / words.length * 100) + '%';
 
   updateDisplay();
   startTimer();
@@ -804,19 +385,18 @@ function loadWord() {
 function updateDisplay() {
   const el = document.getElementById('word-display');
   el.innerHTML = currentMasked.map(m => {
-    if (m.state === 'space') return m.char === ' '
+    if (m.state === 'space') return m.char===' '
       ? '<span class="char-revealed"> </span>'
       : `<span class="char-revealed">${m.char}</span>`;
     if (m.state === 'revealed') return `<span class="char-revealed">${m.char}</span>`;
-    if (m.state === 'hint') return `<span class="char-hint">${m.char}</span>`;
+    if (m.state === 'hint')     return `<span class="char-hint">${m.char}</span>`;
     return `<span class="char-hidden">_</span>`;
   }).join('');
 }
 
 function startTimer() {
   clearInterval(timerInterval);
-  totalTime = getTimerSeconds();
-  timeLeft = totalTime;
+  timeLeft = getTimerSeconds();
   isPaused = false;
   lastTickSecond = -1;
 
@@ -831,19 +411,20 @@ function startTimer() {
     if (isPaused) return;
     timeLeft--;
     updateTimerDisplay();
-    if (soundEnabled && timeLeft !== lastTickSecond) {
+
+    // Sonido cada segundo en los últimos 30
+    if (soundEnabled && timeLeft > 0 && timeLeft <= 30 && timeLeft !== lastTickSecond) {
       lastTickSecond = timeLeft;
-      if (timeLeft > 0 && timeLeft <= 30) {
-        playTick(timeLeft <= 10);
-      }
+      playTick(timeLeft <= 10);
     }
+
     if (timeLeft <= 0) {
+      clearInterval(timerInterval);
       timeLeft = 0;
-      if (soundEnabled) playTimeUp();
+      playTimeUp();
       isPaused = true;
-      const btn = document.getElementById('btn-pause');
-      btn.innerHTML = '▶ Reanudar';
-      btn.className = 'ctrl-btn';
+      document.getElementById('btn-pause').innerHTML = '▶ Reanudar';
+      document.getElementById('btn-pause').className = 'ctrl-btn';
       document.getElementById('pause-overlay').classList.add('visible');
     }
   }, 1000);
@@ -851,8 +432,8 @@ function startTimer() {
 
 function updateTimerDisplay() {
   const el = document.getElementById('timer');
-  const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-  const s = (timeLeft % 60).toString().padStart(2, '0');
+  const m = Math.floor(timeLeft/60).toString().padStart(2,'0');
+  const s = (timeLeft%60).toString().padStart(2,'0');
   el.textContent = `${m}:${s}`;
   el.className = 'timer-display';
   if (timeLeft <= 10) el.classList.add('danger');
@@ -860,7 +441,7 @@ function updateTimerDisplay() {
 }
 
 function togglePause() {
-  if (soundEnabled && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  unlockAudio(); // por si hay cualquier bloqueo pendiente
   isPaused = !isPaused;
   const btn = document.getElementById('btn-pause');
   const overlay = document.getElementById('pause-overlay');
@@ -880,22 +461,15 @@ function nextWord() {
   loadWord();
 }
 
-// Keyboard: reveal letters
 window.addEventListener('keydown', e => {
   if (document.getElementById('game-screen').classList.contains('hidden')) return;
-  // Don't intercept when typing in an input
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  if (e.ctrlKey || e.altKey || e.metaKey) return;
-
-  // Space = pause/resume
-  if (e.key === ' ') { e.preventDefault(); togglePause(); return; }
-
+  if (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if (e.ctrlKey||e.altKey||e.metaKey) return;
+  if (e.key===' ') { e.preventDefault(); togglePause(); return; }
   const key = removeAccents(e.key).toUpperCase();
   if (/^[A-Z0-9]$/.test(key)) {
-    // Resume audio context on first keypress
-    if (soundEnabled && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     for (let i = 0; i < currentOriginal.length; i++) {
-      if (currentOriginal[i] === key && currentMasked[i].state === 'hidden') {
+      if (currentOriginal[i]===key && currentMasked[i].state==='hidden') {
         currentMasked[i].state = 'revealed';
         updateDisplay();
         break;
@@ -904,7 +478,6 @@ window.addEventListener('keydown', e => {
   }
 });
 
-// Init on load
 initSetup();
 </script>
 </body>
