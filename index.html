@@ -10,8 +10,6 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center}
 .hidden{display:none!important}
-
-/* SETUP */
 #setup-screen{width:100%;max-width:780px;padding:20px}
 .setup-header{text-align:center;margin-bottom:32px}
 .setup-header h1{font-size:2.2em;font-weight:800;color:var(--accent);letter-spacing:-1px;font-family:var(--word-font)}
@@ -43,8 +41,8 @@ body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-heigh
 .custom-time{display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:.9em}
 .custom-time input{width:55px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--ui-font);font-size:.9em;padding:7px 10px;border-radius:8px;outline:none;text-align:center;transition:border-color .2s}
 .custom-time input:focus{border-color:var(--accent)}
-.sound-row{display:flex;align-items:center;justify-content:space-between}
-.toggle-switch{position:relative;width:44px;height:24px}
+.sound-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
+.toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
 .toggle-switch input{opacity:0;width:0;height:0}
 .toggle-thumb{position:absolute;inset:0;background:var(--text-faint);border-radius:24px;cursor:pointer;transition:background .3s}
 .toggle-thumb::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:white;border-radius:50%;transition:transform .3s}
@@ -53,8 +51,6 @@ body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-heigh
 .start-btn{width:100%;background:var(--accent);border:none;color:white;font-family:var(--ui-font);font-size:1.25em;font-weight:700;padding:18px;border-radius:14px;cursor:pointer;margin-top:6px;letter-spacing:.5px;transition:all .2s}
 .start-btn:hover{background:#3AAFFF;box-shadow:0 4px 24px rgba(29,158,255,.35);transform:translateY(-1px)}
 .start-btn:active{transform:translateY(1px)}
-
-/* GAME */
 #game-screen{width:100%;max-width:1100px;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
 .progress-bar-wrap{width:100%;height:3px;background:var(--surface2);border-radius:3px;margin-bottom:40px;overflow:hidden}
 .progress-bar-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .4s ease}
@@ -64,7 +60,7 @@ body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-heigh
 @keyframes pulse-red{from{opacity:1}to{opacity:.6}}
 .progress-label{font-size:.85em;color:var(--text-faint);letter-spacing:2px;text-transform:uppercase;margin-bottom:48px}
 .word-area{margin:0 0 60px;min-height:140px;display:flex;align-items:center;justify-content:center;width:100%;padding:0 10px}
-.word-display{font-family:var(--word-font);font-size:clamp(2.8rem,7vw,5.5rem);letter-spacing:14px;font-weight:700;text-align:center;color:var(--text);line-height:1.3;word-break:break-word}
+.word-display{font-family:var(--word-font);font-size:clamp(2.8rem,7vw,5.5rem);letter-spacing:14px;font-weight:700;text-align:center;line-height:1.3;word-break:break-word}
 .char-revealed{color:var(--text)}
 .char-hint{color:var(--accent)}
 .char-hidden{color:var(--text-faint)}
@@ -116,7 +112,7 @@ body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-heigh
   </div>
   <div class="panel">
     <div class="panel-title">Opciones</div>
-    <div class="sound-row" style="margin-bottom:14px">
+    <div class="sound-row">
       <span style="color:var(--text-muted);font-size:.95em">Sonido de temporizador (tick)</span>
       <label class="toggle-switch">
         <input type="checkbox" id="sound-toggle" checked>
@@ -131,7 +127,7 @@ body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-heigh
       </label>
     </div>
   </div>
-  <button class="start-btn" onclick="startGame()">Empezar Proyección ▶</button>
+  <button class="start-btn" id="start-btn" onclick="startGame()">Empezar Proyección ▶</button>
 </div>
 
 <div id="game-screen" class="hidden">
@@ -153,10 +149,15 @@ body{font-family:var(--ui-font);background:var(--bg);color:var(--text);min-heigh
 </div>
 
 <div class="pause-overlay" id="pause-overlay">
-  <div class="pause-card">⏸ Pausado<br><span style="font-size:.55em;letter-spacing:1px;opacity:.5;margin-top:10px;display:block">Presiona Reanudar para continuar</span></div>
+  <div class="pause-card">⏸ Pausado<br>
+    <span style="font-size:.55em;letter-spacing:1px;opacity:.5;margin-top:10px;display:block">Presiona Reanudar para continuar</span>
+  </div>
 </div>
 
 <script>
+// =========================================================
+// DATOS
+// =========================================================
 const DEFAULT_WORDS = [
   {text:"No vales nada",complexity:3},
   {text:"Nunca cambiarás",complexity:3},
@@ -169,10 +170,9 @@ const DEFAULT_WORDS = [
   {text:"En Jesús hay salvación",complexity:3},
   {text:"Por fuera puede verse bien pero por dentro está destrozada",complexity:1},
 ];
-
-const COMPLEXITY_PROB = {1:0.40, 2:0.20, 3:0.05};
+const COMPLEXITY_PROB   = {1:0.40, 2:0.20, 3:0.05};
 const COMPLEXITY_LABELS = {1:"Fácil", 2:"Medio", 3:"Difícil"};
-const COMPLEXITY_CLASSES = {1:"easy", 2:"medium", 3:"hard"};
+const COMPLEXITY_CLASSES= {1:"easy",  2:"medium", 3:"hard"};
 
 // =========================================================
 // AUDIO
@@ -239,13 +239,12 @@ function playStart() {
 // SETUP UI
 // =========================================================
 function removeAccents(s) {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 function shuffle(arr) {
-  // Fisher-Yates
-  for (let i = arr.length-1; i > 0; i--) {
-    const j = Math.floor(Math.random()*(i+1));
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
@@ -315,12 +314,12 @@ function selectPreset(btn, sec) {
   document.querySelectorAll('.time-preset').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   selectedSeconds = sec;
-  document.getElementById('custom-time-row').style.display = sec===0 ? 'flex' : 'none';
+  document.getElementById('custom-time-row').style.display = sec === 0 ? 'flex' : 'none';
 }
 function getTimerSeconds() {
   if (selectedSeconds === 0) {
     const v = parseInt(document.getElementById('custom-min').value, 10);
-    return (isNaN(v)||v<1 ? 4 : Math.min(v,30)) * 60;
+    return (isNaN(v) || v < 1 ? 4 : Math.min(v, 30)) * 60;
   }
   return selectedSeconds;
 }
@@ -337,8 +336,11 @@ let timeLeft = 0;
 let isPaused = false;
 
 function startGame() {
-  // Desbloquear audio en este gesto de usuario
-  unlockAudio();
+  // CRÍTICO: unlockAudio debe llamarse dentro del onclick
+  unlockAudioSync();
+  playStart(); // pitido de prueba inmediato
+
+  soundEnabled = document.getElementById('sound-toggle').checked;
 
   const rows = document.querySelectorAll('#word-rows .word-row');
   words = [];
@@ -347,11 +349,12 @@ function startGame() {
     if (text) words.push({text, complexity: row._complexity || 1});
   });
 
-  if (words.length === 0) { alert('Agrega al menos una palabra antes de empezar.'); return; }
+  if (words.length === 0) {
+    alert('Agrega al menos una palabra antes de empezar.');
+    return;
+  }
 
-  soundEnabled = document.getElementById('sound-toggle').checked;
-  const doShuffle = document.getElementById('shuffle-toggle').checked;
-  if (doShuffle) shuffle(words);
+  if (document.getElementById('shuffle-toggle').checked) shuffle(words);
 
   currentIndex = 0;
   document.getElementById('setup-screen').classList.add('hidden');
@@ -388,11 +391,11 @@ function loadWord() {
         currentMasked.push({char:c, state:'revealed'});
         firstLetter = false;
       } else {
-        currentMasked.push({char:c, state: Math.random()<prob ? 'hint' : 'hidden'});
+        currentMasked.push({char:c, state: Math.random() < prob ? 'hint' : 'hidden'});
       }
     } else {
       currentMasked.push({char:c, state:'space'});
-      if (c===' ') firstLetter = true;
+      if (c === ' ') firstLetter = true;
     }
   }
 
@@ -412,8 +415,8 @@ function loadWord() {
 function updateDisplay() {
   const el = document.getElementById('word-display');
   el.innerHTML = currentMasked.map(m => {
-    if (m.state === 'space') return m.char===' '
-      ? '<span class="char-revealed"> </span>'
+    if (m.state === 'space')    return m.char === ' '
+      ? '<span class="char-revealed">&nbsp;</span>'
       : `<span class="char-revealed">${m.char}</span>`;
     if (m.state === 'revealed') return `<span class="char-revealed">${m.char}</span>`;
     if (m.state === 'hint')     return `<span class="char-hint">${m.char}</span>`;
@@ -439,7 +442,6 @@ function startTimer() {
     timeLeft--;
     updateTimerDisplay();
 
-    // Sonido cada segundo en los últimos 30
     if (soundEnabled && timeLeft > 0 && timeLeft <= 30 && timeLeft !== lastTickSecond) {
       lastTickSecond = timeLeft;
       playTick(timeLeft <= 10);
@@ -448,6 +450,7 @@ function startTimer() {
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
       timeLeft = 0;
+      updateTimerDisplay();
       playTimeUp();
       isPaused = true;
       document.getElementById('btn-pause').innerHTML = '▶ Reanudar';
@@ -468,18 +471,16 @@ function updateTimerDisplay() {
 }
 
 function togglePause() {
-  unlockAudio(); // por si hay cualquier bloqueo pendiente
   isPaused = !isPaused;
   const btn = document.getElementById('btn-pause');
-  const overlay = document.getElementById('pause-overlay');
   if (isPaused) {
     btn.innerHTML = '▶ Reanudar';
     btn.className = 'ctrl-btn';
-    overlay.classList.add('visible');
+    document.getElementById('pause-overlay').classList.add('visible');
   } else {
     btn.innerHTML = '⏸ Pausar';
     btn.className = 'ctrl-btn warn-btn';
-    overlay.classList.remove('visible');
+    document.getElementById('pause-overlay').classList.remove('visible');
   }
 }
 
@@ -490,13 +491,13 @@ function nextWord() {
 
 window.addEventListener('keydown', e => {
   if (document.getElementById('game-screen').classList.contains('hidden')) return;
-  if (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
-  if (e.ctrlKey||e.altKey||e.metaKey) return;
-  if (e.key===' ') { e.preventDefault(); togglePause(); return; }
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.key === ' ') { e.preventDefault(); togglePause(); return; }
   const key = removeAccents(e.key).toUpperCase();
   if (/^[A-Z0-9]$/.test(key)) {
     for (let i = 0; i < currentOriginal.length; i++) {
-      if (currentOriginal[i]===key && currentMasked[i].state==='hidden') {
+      if (currentOriginal[i] === key && currentMasked[i].state === 'hidden') {
         currentMasked[i].state = 'revealed';
         updateDisplay();
         break;
